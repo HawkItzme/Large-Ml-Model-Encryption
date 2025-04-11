@@ -7,6 +7,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.CipherInputStream
 import javax.crypto.spec.GCMParameterSpec
@@ -51,7 +52,7 @@ object Model_Decryptor_KeyStore {
         return outputFile
     }*/
 
-        suspend fun decryptModel(context: Context, encryptedFileName: String): File {
+/*suspend fun decryptModel(context: Context, encryptedFileName: String): File {
         val encryptedFile = File(context.getExternalFilesDir(null), encryptedFileName)
         val outputFile = File(context.getExternalFilesDir(null), "decrypted_model.tflite")
         var secretKey = AESKeyManager.getDecryptedAESKey(context)
@@ -59,7 +60,7 @@ object Model_Decryptor_KeyStore {
         FileInputStream(encryptedFile).use { fis ->
             val iv = ByteArray(IV_SIZE)
             if (fis.read(iv) != IV_SIZE) {
-                throw IOException("Unable to read IV from encrypted file.")
+                throw IOException("Decrypt: Unable to read IV from encrypted file.")
             }
 
             val cipher = Cipher.getInstance(TRANSFORMATION)
@@ -68,14 +69,76 @@ object Model_Decryptor_KeyStore {
 
             CipherInputStream(fis, cipher).use { cis ->
                 FileOutputStream(outputFile).use { fos ->
-                    val buffer = ByteArray(BUFFER_SIZE)
+                    val buffer = ByteArray(8192)
+                  //  val buffer = ByteArray(BUFFER_SIZE)
                     var bytesRead: Int
+                    var totalBytes = 0
                     while (cis.read(buffer).also { bytesRead = it } != -1) {
                         fos.write(buffer, 0, bytesRead)
+                        totalBytes += bytesRead
+                        if (totalBytes % (1024 * 1024) == 0) {
+                            Log.d("Decrypt", "Decrypted so far: ${totalBytes / 1024} KB")
+                        }
                     }
                 }
             }
         }
         return outputFile
+    }*/
+
+    suspend fun decryptModel(context: Context, encryptedFileName: String): File {
+        Log.d("Decrypt", "=== decryptModel called with file: $encryptedFileName ===")
+
+        val encryptedFile = File(context.getExternalFilesDir(null), encryptedFileName)
+        val outputFile = File(context.getExternalFilesDir(null), "decrypted_model.tflite")
+        Log.d("Decrypt", "Encrypted file: exists = ${encryptedFile.exists()}, size = ${encryptedFile.length()} bytes")
+
+        val secretKey = AESKeyManager.getDecryptedAESKey(context)
+        Log.d("Decrypt", "✅ Secret key retrieved.")
+
+        FileInputStream(encryptedFile).use { fis ->
+            Log.d("Decrypt", "📥 FileInputStream opened.")
+
+            val iv = ByteArray(IV_SIZE)
+            val ivRead = fis.read(iv)
+            if (ivRead != IV_SIZE) {
+                Log.e("Decrypt", "❌ Failed to read IV (expected $IV_SIZE bytes, got $ivRead).")
+                throw IOException("Decrypt: Unable to read IV from encrypted file.")
+            }
+            Log.d("Decrypt", "🔐 IV read successfully: ${iv.joinToString()}")
+
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            val spec = GCMParameterSpec(TAG_SIZE * 8, iv)
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
+            Log.d("Decrypt", "🔐 Cipher initialized for decryption.")
+
+            CipherInputStream(fis, cipher).use { cis ->
+                Log.d("Decrypt", "📡 CipherInputStream created.")
+
+                FileOutputStream(outputFile).use { fos ->
+                    Log.d("Decrypt", "💾 Output file stream opened: ${outputFile.absolutePath}")
+
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    var totalBytes = 0
+
+                    Log.d("Decrypt", "🔄 Starting decryption loop...")
+                    while (cis.read(buffer).also { bytesRead = it } != -1) {
+                        fos.write(buffer, 0, bytesRead)
+                        totalBytes += bytesRead
+                        if (totalBytes % (1024 * 1024) == 0) {
+                            Log.d("Decrypt", "📊 Decrypted so far: ${totalBytes / 1024} KB")
+                        }
+                    }
+                    Log.d("Decrypt", "✅ Decryption complete. Total bytes decrypted: ${totalBytes / 1024} KB")
+                }
+            }
+        }
+
+        Log.d("Decrypt", "🚀 Returning decrypted model file: ${outputFile.absolutePath}")
+        return outputFile
     }
+
+
+
 }
