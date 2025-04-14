@@ -53,40 +53,6 @@ object Model_Decryptor_KeyStore {
         return outputFile
     }*/
 
-/*suspend fun decryptModel(context: Context, encryptedFileName: String): File {
-        val encryptedFile = File(context.getExternalFilesDir(null), encryptedFileName)
-        val outputFile = File(context.getExternalFilesDir(null), "decrypted_model.tflite")
-        var secretKey = AESKeyManager.getDecryptedAESKey(context)
-
-        FileInputStream(encryptedFile).use { fis ->
-            val iv = ByteArray(IV_SIZE)
-            if (fis.read(iv) != IV_SIZE) {
-                throw IOException("Decrypt: Unable to read IV from encrypted file.")
-            }
-
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            val spec = GCMParameterSpec(TAG_SIZE * 8, iv)
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
-
-            CipherInputStream(fis, cipher).use { cis ->
-                FileOutputStream(outputFile).use { fos ->
-                    val buffer = ByteArray(8192)
-                  //  val buffer = ByteArray(BUFFER_SIZE)
-                    var bytesRead: Int
-                    var totalBytes = 0
-                    while (cis.read(buffer).also { bytesRead = it } != -1) {
-                        fos.write(buffer, 0, bytesRead)
-                        totalBytes += bytesRead
-                        if (totalBytes % (1024 * 1024) == 0) {
-                            Log.d("Decrypt", "Decrypted so far: ${totalBytes / 1024} KB")
-                        }
-                    }
-                }
-            }
-        }
-        return outputFile
-    }*/
-
     suspend fun decryptModel(context: Context, encryptedFileName: String): File {
         Log.d("Decrypt", "=== decryptModel called with file: $encryptedFileName ===")
 
@@ -139,7 +105,4 @@ object Model_Decryptor_KeyStore {
         Log.d("Decrypt", "🚀 Returning decrypted model file: ${outputFile.absolutePath}")
         return outputFile
     }
-
-
-
 }
