@@ -16,7 +16,8 @@ object Model_Decryptor_KeyStore {
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
     private const val IV_SIZE = 12 // 12 bytes for GCM IV
     private const val TAG_SIZE = 16 // 128-bit authentication tag
-    private const val BUFFER_SIZE = 1024 * 4 // 4KB buffer
+    private const val BUFFER_SIZE = 8388608 // 8MB buffer
+    //private const val BUFFER_SIZE = 1048576 // 1MB buffer
 
    /* suspend fun decryptModel(context: Context, encryptedFileName: String): File {
         val encryptedFile = File(context.getExternalFilesDir(null), encryptedFileName)
@@ -118,7 +119,7 @@ object Model_Decryptor_KeyStore {
                 FileOutputStream(outputFile).use { fos ->
                     Log.d("Decrypt", "💾 Output file stream opened: ${outputFile.absolutePath}")
 
-                    val buffer = ByteArray(8192)
+                    val buffer = ByteArray(BUFFER_SIZE)
                     var bytesRead: Int
                     var totalBytes = 0
 
