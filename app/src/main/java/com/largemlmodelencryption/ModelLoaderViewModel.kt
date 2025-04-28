@@ -58,7 +58,7 @@ class ModelLoaderViewModel : ViewModel() {
     }
 
     /**
-     * Runs inference using TensorFlow Lite with a memory-mapped model file to avoid OOM.
+     * Runs inference using TensorFlow Lite
      */
     fun runInferenceNew(modelFile: File): String {
         // Load model using memory-mapped buffer
@@ -66,11 +66,10 @@ class ModelLoaderViewModel : ViewModel() {
             FileChannel.MapMode.READ_ONLY, 0, modelFile.length()
         )
 
-        // Create TensorFlow Lite Interpreter
         val interpreter = Interpreter(modelBuffer)
 
-        // Prepare dummy input data.
-        val inputShape = interpreter.getInputTensor(0).shape() // e.g., [1, 224, 224, 3]
+        // Prepare dummy input data
+        val inputShape = interpreter.getInputTensor(0).shape()
         Log.d("ModelShape", inputShape.contentToString())
         val inputData = Array(inputShape[0]) {
             Array(inputShape[1]) {
@@ -80,15 +79,23 @@ class ModelLoaderViewModel : ViewModel() {
             }
         }
 
-        // Prepare output array
-        val outputTensor = interpreter.getOutputTensor(0)
-        val outputShape = outputTensor.shape()
-        val outputData = Array(outputShape[0]) { FloatArray(outputShape[1]) }
+        // Get output shape and allocate nested arrays dynamically
+        val outputShape = interpreter.getOutputTensor(0).shape()
+        Log.d("ModelShape", "Output shape: ${outputShape.contentToString()}")
 
-        // Run inference
+        // Create output array using reflection
+        val outputData = Array(outputShape[0]) {
+            Array(outputShape[1]) {
+                Array(outputShape[2]) {
+                    FloatArray(outputShape[3])
+                }
+            }
+        }
+
         interpreter.run(inputData, outputData)
 
-        // Return a summary of output
-        return outputData.firstOrNull()?.take(5)?.joinToString(prefix = "[", postfix = "]") ?: "No output"
+        // Sample the first few values from the deepest level to verify it works
+        val firstFewValues = outputData[0][0][0].take(5).joinToString(", ")
+        return "Output sample: [$firstFewValues]"
     }
 }

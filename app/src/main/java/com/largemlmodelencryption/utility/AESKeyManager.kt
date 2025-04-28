@@ -7,6 +7,7 @@ import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.File
 import java.net.URL
 import java.security.KeyStore
@@ -21,7 +22,7 @@ object AESKeyManager {
     private const val KEY_ALIAS = "MODEL_AES_KEY_ALIAS"
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
 
-    suspend fun downloadAndStoreAESKey(context: Context, keyUrl: String) {
+  /*  suspend fun downloadAndStoreAESKey(context: Context, keyUrl: String) {
         Log.d("AESKeyManager", "📥 downloadAndStoreAESKey() called with URL: $keyUrl")
 
         withContext(Dispatchers.IO) {
@@ -53,7 +54,52 @@ object AESKeyManager {
 
             Log.d("AESKeyManager", "✅ AES key downloaded and securely stored in Keystore.")
         }
+    }*/
+
+    suspend fun downloadAndStoreAESKey(context: Context, keyUrl: String) {
+        Log.d("AESKeyManager", "📥 downloadAndStoreAESKey() called with URL: $keyUrl")
+
+        withContext(Dispatchers.IO) {
+            Log.d("AESKeyManager", "🌐 Downloading AES key and metadata from server...")
+
+            // Download the AES key and metadata JSON
+            val jsonString = URL(keyUrl).readText().trim()
+            val keyData = JSONObject(jsonString)
+            val keyText = keyData.getString("key")
+            val decodedKey = Base64.decode(keyText, Base64.DEFAULT)
+            Log.d("AESKeyManager", "✅ AES key downloaded and base64-decoded.")
+
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+            Log.d("AESKeyManager", "🔐 Android Keystore loaded.")
+
+            // Store the AES key securely in the Keystore
+            val secretKey = SecretKeySpec(decodedKey, "AES")
+            val entry = KeyStore.SecretKeyEntry(secretKey)
+
+            // Define KeyProtection parameters
+            val keyProtection = KeyProtection.Builder(
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .build()
+
+            // Manually store the key
+            keyStore.setEntry(KEY_ALIAS, entry, keyProtection)
+
+            Log.d("AESKeyManager", "✅ AES key securely stored in Keystore.")
+
+            // Remove the key from JSON to ensure it is not stored in plain text
+            keyData.remove("key")
+
+            // Save the remaining metadata (without the AES key) to a file
+            val metadataFile = File(context.getExternalFilesDir(null), "gemma3-model_aes_key.json")
+            metadataFile.writeText(keyData.toString(4)) // Indented JSON format
+
+            Log.d("AESKeyManager", "✅ AES key metadata saved (without the key) to: ${metadataFile.absolutePath}")
+        }
     }
+
 
     suspend fun getDecryptedAESKey(context: Context): SecretKey {
         Log.d("AESKeyManager", "🔎 getDecryptedAESKey() called")
